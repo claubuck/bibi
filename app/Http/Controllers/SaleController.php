@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Sale;
 use Inertia\Inertia;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StoreSaleRequest;
 use App\Http\Requests\UpdateSaleRequest;
@@ -13,8 +14,59 @@ class SaleController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $filters = $request->validate([
+            'date_range' => 'sometimes|array',
+            'date_range.start' => 'nullable|date',
+            'date_range.end' => 'nullable|date',
+            'regions' => 'sometimes|array',
+            'categories' => 'sometimes|array',
+            'customer_types' => 'sometimes|array',
+            'payment_methods' => 'sometimes|array',
+            'sales_persons' => 'sometimes|array'
+        ]);
+
+        $query = Sale::query();
+
+        // Aplicar filtros
+        $query->when($filters['date_range']['start'] ?? null, function ($q) use ($filters) {
+            $q->whereBetween('sale_date', [
+                $filters['date_range']['start'],
+                $filters['date_range']['end'] ?? now()
+            ]);
+        });
+
+        $query->when($filters['regions'] ?? null, function ($q, $regions) {
+            $q->whereIn('region', $regions);
+        });
+
+        $query->when($filters['categories'] ?? null, function ($q, $categories) {
+            $q->whereIn('product_category', $categories);
+        });
+
+        $query->when($filters['customer_types'] ?? null, function ($q, $types) {
+            $q->whereIn('customer_type', $types);
+        });
+
+        $query->when($filters['payment_methods'] ?? null, function ($q, $methods) {
+            $q->whereIn('payment_method', $methods);
+        });
+
+        $query->when($filters['sales_persons'] ?? null, function ($q, $persons) {
+            $q->whereIn('sales_person', $persons);
+        });
+
+        // Datos para los filtros
+        $filterOptions = [
+            'regions' => Sale::distinct('region')->pluck('region'),
+            'categories' => Sale::distinct('product_category')->pluck('product_category'),
+            'customer_types' => Sale::distinct('customer_type')->pluck('customer_type'),
+            'payment_methods' => Sale::distinct('payment_method')->pluck('payment_method'),
+            'sales_persons' => Sale::distinct('sales_person')->pluck('sales_person')
+        ];
+
+
         $indicators = [
             'total_sales' => Sale::sum('total_sale'),
             'average_sale' => Sale::avg('total_sale'),
@@ -85,7 +137,9 @@ class SaleController extends Controller
         ];
 
         return Inertia::render('Sales/Index', [
-            'indicators' => $indicators
+            'indicators' => $indicators,
+            'filterOptions' => $filterOptions,
+            'filters' => $filters
         ]);
     }
 

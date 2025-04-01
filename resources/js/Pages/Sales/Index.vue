@@ -1,16 +1,81 @@
 <template>
-  <div
-    class="min-h-screen bg-gray-50 dark:bg-gray-900 p-8 transition-colors duration-300"
-  >
-    <div class="max-w-7xl mx-auto">
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-900 p-8 flex">
+    <!-- Sidebar de Filtros -->
+    <div
+      class="w-1/4 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md h-full"
+    >
+      <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
+        Filtros
+      </h2>
+
+      <!-- Filtros Principales -->
+      <div>
+        <label class="block text-sm font-medium dark:text-gray-300"
+          >Rango de Fechas</label
+        >
+        <VueDatePicker
+          v-model="dateRange"
+          range
+          :enable-time-picker="false"
+          :dark="darkMode"
+          :class="darkMode ? 'dp-custom-dark' : 'dp-custom-light'"
+          @update:model-value="applyFilters"
+        />
+      </div>
+      <MultiSelect
+        v-model="selectedRegions"
+        :options="filterOptions.regions"
+        label="Regiones"
+        @update:model-value="applyFilters"
+      />
+      <MultiSelect
+        v-model="selectedCategories"
+        :options="filterOptions.categories"
+        label="Categorías"
+        @update:model-value="applyFilters"
+      />
+
+      <!-- Filtros Secundarios -->
+      <div class="mt-4">
+        <SelectFilter
+          v-model="selectedCustomerTypes"
+          :options="filterOptions.customer_types"
+          label="Tipo de Cliente"
+          @update:model-value="applyFilters"
+        />
+        <SelectFilter
+          v-model="selectedPaymentMethods"
+          :options="filterOptions.payment_methods"
+          label="Método de Pago"
+          @update:model-value="applyFilters"
+        />
+        <SelectFilter
+          v-model="selectedSalesPersons"
+          :options="filterOptions.sales_persons"
+          label="Vendedor"
+          @update:model-value="applyFilters"
+        />
+      </div>
+
+      <div class="mt-4">
+        <button
+          @click="resetFilters"
+          class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors w-full"
+        >
+          Limpiar Filtros
+        </button>
+      </div>
+    </div>
+
+    <div class="w-3/4 pl-8">
       <!-- Header con toggle de modo oscuro -->
-      <div class="flex justify-between items-center mb-8">
+      <div class="flex justify-between items-center">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">
           Panel de Análisis de Ventas
         </h1>
         <button
           @click="toggleDarkMode"
-          class="p-2 rounded-full bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all"
+          class="p-2 rounded-full bg-white dark:bg-gray-800 shadow hover:shadow-lg transition-all"
         >
           <span v-if="!darkMode" class="text-gray-600">🌙</span>
           <span v-else class="text-yellow-400">☀️</span>
@@ -249,8 +314,12 @@
 
 <script>
 import Chart from "chart.js/auto";
+import VueDatePicker from "@vuepic/vue-datepicker";
+import MultiSelect from "@/Components/MultiSelect.vue";
+import SelectFilter from "@/Components/SelectFilter.vue";
 
 export default {
+  components: { VueDatePicker, MultiSelect, SelectFilter },
   props: {
     indicators: {
       type: Object,
@@ -268,6 +337,8 @@ export default {
         monthly_comparison: [],
       }),
     },
+    filterOptions: Object,
+    filters: Object,
   },
 
   data() {
@@ -283,6 +354,12 @@ export default {
         daily: null,
         comparison: null,
       },
+      dateRange: this.filters.date_range || null,
+      selectedRegions: this.filters.regions || [],
+      selectedCategories: this.filters.categories || [],
+      selectedCustomerTypes: this.filters.customer_types || [],
+      selectedPaymentMethods: this.filters.payment_methods || [],
+      selectedSalesPersons: this.filters.sales_persons || [],
     };
   },
 
@@ -326,6 +403,35 @@ export default {
           chart.update();
         }
       });
+    },
+
+    applyFilters() {
+      this.$inertia.get(
+        route("sales.index"),
+        {
+          date_range: this.dateRange,
+          regions: this.selectedRegions,
+          categories: this.selectedCategories,
+          customer_types: this.selectedCustomerTypes,
+          payment_methods: this.selectedPaymentMethods,
+          sales_persons: this.selectedSalesPersons,
+        },
+        {
+          preserveState: true,
+          replace: true,
+          preserveScroll: true,
+        }
+      );
+    },
+
+    resetFilters() {
+      this.dateRange = null;
+      this.selectedRegions = [];
+      this.selectedCategories = [];
+      this.selectedCustomerTypes = [];
+      this.selectedPaymentMethods = [];
+      this.selectedSalesPersons = [];
+      this.applyFilters();
     },
 
     initCharts() {
@@ -582,6 +688,7 @@ export default {
 </script>
 
 <style>
+@import "@vuepic/vue-datepicker/dist/main.css";
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 body {
@@ -596,5 +703,26 @@ body {
   background: #1f2937 !important;
   border: 1px solid #374151 !important;
   color: #f3f4f6 !important;
+}
+
+select::-webkit-scrollbar {
+  width: 8px;
+}
+
+select::-webkit-scrollbar-track {
+  background-color: #f3f4f6; /* bg-gray-100 */
+}
+
+select.dark::-webkit-scrollbar-track {
+  background-color: #1f2937; /* dark:bg-gray-800 */
+}
+
+select::-webkit-scrollbar-thumb {
+  background-color: #d1d5db; /* bg-gray-300 */
+  border-radius: 9999px; /* rounded-full */
+}
+
+select.dark::-webkit-scrollbar-thumb {
+  background-color: #4b5563; /* dark:bg-gray-600 */
 }
 </style>

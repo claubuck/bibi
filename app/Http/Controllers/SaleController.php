@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use App\Models\Sale;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
@@ -16,48 +17,55 @@ class SaleController extends Controller
      */
     public function index(Request $request)
     {
-        $filters = $request->validate([
-            'date_range' => 'sometimes|array',
-            'date_range.start' => 'nullable|date',
-            'date_range.end' => 'nullable|date',
-            'regions' => 'sometimes|array',
-            'categories' => 'sometimes|array',
-            'customer_types' => 'sometimes|array',
-            'payment_methods' => 'sometimes|array',
-            'sales_persons' => 'sometimes|array'
+        // Validación de parámetros
+        $validated = $request->validate([
+            'date_range' => 'nullable|sometimes|array',
+            'date_range.0' => 'nullable|date',
+            'date_range.1' => 'nullable|date|after_or_equal:date_range.0',
+            'regions' => 'sometimes',
+            'categories' => 'sometimes',
+            'customer_types' => 'sometimes',
+            'payment_methods' => 'sometimes',
+            'sales_persons' => 'sometimes'
         ]);
+
+        /* dd($validated); */
+
+        // Normalizar filtros
+        $filters = [
+            'date_range' => $validated['date_range'] ?? null,
+            'regions' => $this->normalizeFilter($validated['regions'] ?? null),
+            'categories' => $this->normalizeFilter($validated['categories'] ?? null),
+            'customer_types' => $this->normalizeFilter($validated['customer_types'] ?? null),
+            'payment_methods' => $this->normalizeFilter($validated['payment_methods'] ?? null),
+            'sales_persons' => $this->normalizeFilter($validated['sales_persons'] ?? null)
+        ];
 
         $query = Sale::query();
 
-        // Aplicar filtros
-        $query->when($filters['date_range']['start'] ?? null, function ($q) use ($filters) {
-            $q->whereBetween('sale_date', [
-                $filters['date_range']['start'],
-                $filters['date_range']['end'] ?? now()
-            ]);
-        });
+        // Aplicar filtro de fechas
+        if (!empty($filters['date_range'])) {
+            $start = Carbon::parse($filters['date_range'][0])->startOfDay();
+            $end = Carbon::parse($filters['date_range'][1] ?? $start)->endOfDay();
+            $query->whereBetween('sale_date', [$start, $end]);
+        }
 
-        $query->when($filters['regions'] ?? null, function ($q, $regions) {
-            $q->whereIn('region', $regions);
-        });
+        // Mapeo y aplicación de filtros
+        $filterMap = [
+            'regions' => 'region',
+            'categories' => 'product_category',
+            'customer_types' => 'customer_type',
+            'payment_methods' => 'payment_method',
+            'sales_persons' => 'sales_person'
+        ];
 
-        $query->when($filters['categories'] ?? null, function ($q, $categories) {
-            $q->whereIn('product_category', $categories);
-        });
+        foreach ($filterMap as $filterKey => $dbColumn) {
+            if (!empty($filters[$filterKey])) {
+                $query->whereIn($dbColumn, $filters[$filterKey]);
+            }
+        }
 
-        $query->when($filters['customer_types'] ?? null, function ($q, $types) {
-            $q->whereIn('customer_type', $types);
-        });
-
-        $query->when($filters['payment_methods'] ?? null, function ($q, $methods) {
-            $q->whereIn('payment_method', $methods);
-        });
-
-        $query->when($filters['sales_persons'] ?? null, function ($q, $persons) {
-            $q->whereIn('sales_person', $persons);
-        });
-
-        // Datos para los filtros
+        // Obtener opciones para filtros
         $filterOptions = [
             'regions' => Sale::distinct('region')->pluck('region'),
             'categories' => Sale::distinct('product_category')->pluck('product_category'),
@@ -66,81 +74,113 @@ class SaleController extends Controller
             'sales_persons' => Sale::distinct('sales_person')->pluck('sales_person')
         ];
 
-
-        $indicators = [
-            'total_sales' => Sale::sum('total_sale'),
-            'average_sale' => Sale::avg('total_sale'),
-            'monthly_trend' => Sale::select(
-                DB::raw('MONTH(sale_date) as month'),
-                DB::raw('SUM(total_sale) as total')
-            )
-                ->groupBy('month')
-                ->get()
-                ->map(function ($item) {
-                    return [
-                        'month' => date('F', mktime(0, 0, 0, $item->month, 1)),
-                        'total' => $item->total
-                    ];
-                }),
-
-            'product_performance' => Sale::select('product_name')
-                ->selectRaw('SUM(total_sale) as total')
-                ->groupBy('product_name')
-                ->orderByDesc('total')
-                ->limit(5)
-                ->get(),
-
-            'regional_sales' => Sale::select('region')
-                ->selectRaw('SUM(total_sale) as total')
-                ->groupBy('region')
-                ->get(),
-
-            'daily_trend' => Sale::select(
-                DB::raw('DATE(sale_date) as date'),
-                DB::raw('SUM(total_sale) as total')
-            )
-                ->whereBetween('sale_date', [now()->subDays(30), now()])
-                ->groupBy('date')
-                ->get(),
-
-            'payment_methods' => Sale::select('payment_method')
-                ->selectRaw('SUM(total_sale) as total')
-                ->groupBy('payment_method')
-                ->get(),
-
-            'customer_types' => Sale::select('customer_type')
-                ->selectRaw('COUNT(*) as count')
-                ->groupBy('customer_type')
-                ->get(),
-
-            'sales_performance' => Sale::select('sales_person')
-                ->selectRaw('SUM(total_sale) as total')
-                ->groupBy('sales_person')
-                ->orderByDesc('total')
-                ->limit(8)
-                ->get(),
-
-            'category_distribution' => Sale::select('product_category')
-                ->selectRaw('SUM(total_sale) as total')
-                ->groupBy('product_category')
-                ->get(),
-
-            'monthly_comparison' => Sale::select(
-                DB::raw('YEAR(sale_date) as year'),
-                DB::raw('MONTH(sale_date) as month'),
-                DB::raw('SUM(total_sale) as total')
-            )
-                ->groupBy('year', 'month')
-                ->orderBy('year')
-                ->orderBy('month')
-                ->get()
-        ];
+        // Calcular indicadores
+        $indicators = $this->calculateIndicators($query);
 
         return Inertia::render('Sales/Index', [
             'indicators' => $indicators,
             'filterOptions' => $filterOptions,
             'filters' => $filters
         ]);
+    }
+
+    protected function normalizeFilter($input): array
+    {
+        if (is_array($input)) {
+            return array_filter($input);
+        }
+
+        if (is_string($input) && $input !== '') {
+            return [$input];
+        }
+
+        return [];
+    }
+
+    private function calculateIndicators($query): array
+    {
+        return [
+            'total_sales' => $query->clone()->sum('total_sale'),
+            'average_sale' => $query->clone()->avg('total_sale'),
+
+            'monthly_trend' => $query->clone()
+                ->select(
+                    DB::raw('YEAR(sale_date) as year'),
+                    DB::raw('MONTH(sale_date) as month'),
+                    DB::raw('SUM(total_sale) as total')
+                )
+                ->groupBy('year', 'month')
+                ->orderBy('year')
+                ->orderBy('month')
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'period' => Carbon::createFromDate($item->year, $item->month)
+                            ->locale('es')
+                            ->isoFormat('MMMM YYYY'),
+                        'total' => $item->total
+                    ];
+                }),
+
+            'product_performance' => $query->clone()
+                ->select('product_name')
+                ->selectRaw('SUM(total_sale) as total')
+                ->groupBy('product_name')
+                ->orderByDesc('total')
+                ->limit(5)
+                ->get(),
+
+            'regional_sales' => $query->clone()
+                ->select('region')
+                ->selectRaw('SUM(total_sale) as total')
+                ->groupBy('region')
+                ->get(),
+
+            'daily_trend' => $query->clone()
+                ->select(
+                    DB::raw('DATE(sale_date) as date'),
+                    DB::raw('SUM(total_sale) as total')
+                )
+                ->groupBy('date')
+                ->get(),
+
+            'payment_methods' => $query->clone()
+                ->select('payment_method')
+                ->selectRaw('SUM(total_sale) as total')
+                ->groupBy('payment_method')
+                ->get(),
+
+            'customer_types' => $query->clone()
+                ->select('customer_type')
+                ->selectRaw('COUNT(*) as count')
+                ->groupBy('customer_type')
+                ->get(),
+
+            'sales_performance' => $query->clone()
+                ->select('sales_person')
+                ->selectRaw('SUM(total_sale) as total')
+                ->groupBy('sales_person')
+                ->orderByDesc('total')
+                ->limit(8)
+                ->get(),
+
+            'category_distribution' => $query->clone()
+                ->select('product_category')
+                ->selectRaw('SUM(total_sale) as total')
+                ->groupBy('product_category')
+                ->get(),
+
+            'monthly_comparison' => $query->clone()
+                ->select(
+                    DB::raw('YEAR(sale_date) as year'),
+                    DB::raw('MONTH(sale_date) as month'),
+                    DB::raw('SUM(total_sale) as total')
+                )
+                ->groupBy('year', 'month')
+                ->orderBy('year')
+                ->orderBy('month')
+                ->get()
+        ];
     }
 
     /**

@@ -24,6 +24,7 @@
         "@googlemaps/js-api-loader": "^1.16.8",
         "@headlessui/vue": "^1.7.23",
         "@vuepic/vue-datepicker": "^11.0.2",
-        "chart.js": "^4.4.8"
+        "chart.js": "^4.4.8",
+        "chartjs-plugin-datalabels": "^2.2.0"
     }
 }

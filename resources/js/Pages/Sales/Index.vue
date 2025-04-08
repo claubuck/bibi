@@ -405,6 +405,8 @@ import VueDatePicker from "@vuepic/vue-datepicker";
 import MultiSelect from "@/Components/MultiSelect.vue";
 import SelectFilter from "@/Components/SelectFilter.vue";
 import DashboardHeader from "@/Components/DashboardHeader.vue";
+import ChartDataLabels from "chartjs-plugin-datalabels";
+Chart.register(ChartDataLabels);
 
 export default {
   components: { VueDatePicker, MultiSelect, SelectFilter, DashboardHeader },
@@ -566,6 +568,11 @@ export default {
               },
             ],
           },
+          options: {
+            plugins: {
+              datalabels: false, // Desactiva datalabels para este gráfico
+            },
+          },
         });
       }
 
@@ -588,6 +595,11 @@ export default {
               },
             ],
           },
+          options: {
+            plugins: {
+              datalabels: false, // Desactiva datalabels para este gráfico
+            },
+          },
         });
       }
 
@@ -601,7 +613,7 @@ export default {
           datasets: [
             {
               data: this.indicators.category_distribution.map(
-                (item) => item.total
+                (item) => parseFloat(item.total) // Convertir a número
               ),
               backgroundColor: [
                 "#3B82F6",
@@ -612,6 +624,39 @@ export default {
               ],
             },
           ],
+        },
+        options: {
+          plugins: {
+            datalabels: {
+              formatter: (value, context) => {
+                // Convertir los valores a números antes de calcular el total
+                const total = context.dataset.data.reduce(
+                  (acc, curr) => acc + parseFloat(curr || 0),
+                  0
+                );
+                const percentage = ((value / total) * 100).toFixed(2);
+                return `${percentage}%`;
+              },
+              color: "#fff",
+              font: {
+                weight: "bold",
+              },
+            },
+            tooltip: {
+              callbacks: {
+                label: (tooltipItem) => {
+                  // Convertir los valores a números antes de calcular el total
+                  const total = tooltipItem.dataset.data.reduce(
+                    (acc, curr) => acc + parseFloat(curr || 0),
+                    0
+                  );
+                  const value = parseFloat(tooltipItem.raw || 0);
+                  const percentage = ((value / total) * 100).toFixed(2);
+                  return `${tooltipItem.label}: ${value} (${percentage}%)`;
+                },
+              },
+            },
+          },
         },
       });
 
@@ -624,10 +669,45 @@ export default {
           ),
           datasets: [
             {
-              data: this.indicators.payment_methods.map((item) => item.total),
+              data: this.indicators.payment_methods.map(
+                (item) => parseFloat(item.total) // Convertir a número
+              ),
               backgroundColor: ["#3B82F6", "#10B981", "#F59E0B", "#EF4444"],
             },
           ],
+        },
+        options: {
+          plugins: {
+            datalabels: {
+              formatter: (value, context) => {
+                // Convertir los valores a números antes de calcular el total
+                const total = context.dataset.data.reduce(
+                  (acc, curr) => acc + parseFloat(curr || 0),
+                  0
+                );
+                const percentage = ((value / total) * 100).toFixed(2);
+                return `${percentage}%`;
+              },
+              color: "#fff",
+              font: {
+                weight: "bold",
+              },
+            },
+            tooltip: {
+              callbacks: {
+                label: (tooltipItem) => {
+                  // Convertir los valores a números antes de calcular el total
+                  const total = tooltipItem.dataset.data.reduce(
+                    (acc, curr) => acc + parseFloat(curr || 0),
+                    0
+                  );
+                  const value = parseFloat(tooltipItem.raw || 0);
+                  const percentage = ((value / total) * 100).toFixed(2);
+                  return `${tooltipItem.label}: ${value} (${percentage}%)`;
+                },
+              },
+            },
+          },
         },
       });
 
@@ -644,6 +724,11 @@ export default {
               backgroundColor: ["#3B82F6", "#10B981"],
             },
           ],
+        },
+        options: {
+          plugins: {
+            datalabels: false, // Desactiva datalabels para este gráfico
+          },
         },
       });
 
@@ -667,6 +752,11 @@ export default {
               backgroundColor: "rgba(16, 185, 129, 0.1)",
             },
           ],
+        },
+        options: {
+          plugins: {
+            datalabels: false, // Desactiva datalabels para este gráfico
+          },
         },
       });
 
@@ -699,6 +789,9 @@ export default {
               display: true,
               position: "left",
             },
+          },
+          plugins: {
+            datalabels: false, // Desactiva datalabels para este gráfico
           },
         },
       });

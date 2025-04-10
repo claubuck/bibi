@@ -17,6 +17,11 @@ class SaleController extends Controller
      */
     public function index(Request $request)
     {
+        if ($request->has('date_range') && is_array($request->date_range)) {
+            $request->merge([
+                'date_range' => array_values($request->date_range),
+            ]);
+        }
         // Validación de parámetros
         $validated = $request->validate([
             'date_range' => 'nullable|sometimes|array',

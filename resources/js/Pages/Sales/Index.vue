@@ -1,134 +1,93 @@
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900 p-8 flex">
     <!-- Sidebar de Filtros -->
-    <div class="w-1/4 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md h-full">
-      <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
-        Filtros
-      </h2>
-
-      <!-- Filtros Principales -->
-      <div>
-        <label class="block text-sm font-medium dark:text-gray-300">Rango de Fechas</label>
-        <VueDatePicker v-model="dateRange" range :enable-time-picker="false" :dark="darkMode"
-          :class="darkMode ? 'dp-custom-dark' : 'dp-custom-light'" @update:model-value="applyFilters" />
-      </div>
-      <MultiSelect v-model="selectedRegions" :options="filterOptions.regions" label="Regiones" :dark="darkMode"
-        @update:model-value="applyFilters" />
-      <MultiSelect v-model="selectedCategories" :options="filterOptions.categories" label="Categorías" :dark="darkMode"
-        @update:model-value="applyFilters" />
-
-      <!-- Filtros Secundarios -->
-      <div class="mt-4">
-        <SelectFilter v-model="selectedCustomerTypes" :options="filterOptions.customer_types" label="Tipo de Cliente"
-          :dark="darkMode" @update:model-value="applyFilters" />
-        <SelectFilter v-model="selectedPaymentMethods" :options="filterOptions.payment_methods" label="Método de Pago"
-          :dark="darkMode" @update:model-value="applyFilters" />
-        <SelectFilter v-model="selectedSalesPersons" :options="sortedSalesPersons" label="Vendedor" :dark="darkMode"
-          @update:model-value="applyFilters" />
-      </div>
-
-      <div class="mt-4">
-        <button @click="resetFilters"
-          class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors w-full">
-          Limpiar Filtros
-        </button>
-      </div>
-    </div>
+    <FilterSidebar
+      :dark-mode="darkMode"
+      :filter-options="filterOptions"
+      :filters="filters"
+    />
 
     <div class="w-3/4 pl-8">
       <!-- Header con toggle de modo oscuro -->
-      <DashboardHeader :dark-mode="darkMode" @toggle-dark-mode="toggleDarkMode" />
+      <DashboardHeader
+        :dark-mode="darkMode"
+        @toggle-dark-mode="toggleDarkMode"
+      />
 
       <!-- Tarjetas de KPIs -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="p-6 rounded-xl shadow-lg backdrop-blur-sm transition-all duration-300 border-l-4" :class="[
-          darkMode
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-white border-gray-100',
-          'border-blue-500',
-        ]">
-          <h3 class="text-sm font-medium mb-2" :class="darkMode ? 'text-gray-400' : 'text-gray-500'">
-            Ventas Totales
-          </h3>
-          <p class="text-3xl font-semibold" :class="darkMode ? 'text-gray-100' : 'text-gray-900'">
-            ${{ formatNumber(indicators.total_sales || 0) }}
-          </p>
-        </div>
-
-        <div class="p-6 rounded-xl shadow-lg backdrop-blur-sm transition-all duration-300 border-l-4" :class="[
-          darkMode
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-white border-gray-100',
-          'border-green-500',
-        ]">
-          <h3 class="text-sm font-medium mb-2" :class="darkMode ? 'text-gray-400' : 'text-gray-500'">
-            Venta Promedio
-          </h3>
-          <p class="text-3xl font-semibold" :class="darkMode ? 'text-gray-100' : 'text-gray-900'">
-            ${{ formatNumber(indicators.average_sale || 0) }}
-          </p>
-        </div>
-
-        <div class="p-6 rounded-xl shadow-lg backdrop-blur-sm transition-all duration-300 border-l-4" :class="[
-          darkMode
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-white border-gray-100',
-          'border-purple-500',
-        ]">
-          <h3 class="text-sm font-medium mb-2" :class="darkMode ? 'text-gray-400' : 'text-gray-500'">
-            Transacciones Totales
-          </h3>
-          <p class="text-3xl font-semibold" :class="darkMode ? 'text-gray-100' : 'text-gray-900'">
-            {{
-              formatNumber(
-                (indicators.monthly_trend || []).reduce(
-                  (acc, curr) => acc + parseFloat(curr.total || 0),
-                  0
-                )
-              )
-            }}
-          </p>
-        </div>
-      </div>
+      <KpiSection 
+        :indicators="indicators"
+        :dark-mode="darkMode"
+      />
 
       <!-- Gráficos -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Gráfico de Tendencia Mensual -->
-        <div class="rounded-xl p-6 transition-all duration-300" :class="darkMode
-          ? 'bg-gray-800 border border-gray-700'
-          : 'bg-white border border-gray-100'
-          ">
-          <h3 class="text-lg font-semibold mb-4" :class="darkMode ? 'text-gray-200' : 'text-gray-900'">
+        <div
+          class="rounded-xl p-6 transition-all duration-300"
+          :class="
+            darkMode
+              ? 'bg-gray-800 border border-gray-700'
+              : 'bg-white border border-gray-100'
+          "
+        >
+          <h3
+            class="text-lg font-semibold mb-4"
+            :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
+          >
             Tendencia Mensual de Ventas
           </h3>
           <canvas ref="trendChart"></canvas>
         </div>
 
         <!-- Productos Más Vendidos -->
-        <div class="rounded-xl p-6 transition-all duration-300" :class="darkMode
-          ? 'bg-gray-800 border border-gray-700'
-          : 'bg-white border border-gray-100'
-          ">
-          <h3 class="text-lg font-semibold mb-4" :class="darkMode ? 'text-gray-200' : 'text-gray-900'">
+        <div
+          class="rounded-xl p-6 transition-all duration-300"
+          :class="
+            darkMode
+              ? 'bg-gray-800 border border-gray-700'
+              : 'bg-white border border-gray-100'
+          "
+        >
+          <h3
+            class="text-lg font-semibold mb-4"
+            :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
+          >
             Productos Más Vendidos
           </h3>
           <div class="space-y-4">
-            <div v-for="(product, index) in indicators.product_performance" :key="product.product_name"
-              class="flex items-center justify-between p-3 rounded-lg" :class="darkMode ? 'bg-gray-700' : 'bg-gray-50'">
+            <div
+              v-for="(product, index) in indicators.product_performance"
+              :key="product.product_name"
+              class="flex items-center justify-between p-3 rounded-lg"
+              :class="darkMode ? 'bg-gray-700' : 'bg-gray-50'"
+            >
               <div class="flex items-center w-full">
-                <span class="text-sm font-medium mr-4" :class="darkMode ? 'text-gray-300' : 'text-gray-600'">
+                <span
+                  class="text-sm font-medium mr-4"
+                  :class="darkMode ? 'text-gray-300' : 'text-gray-600'"
+                >
                   #{{ index + 1 }}
                 </span>
-                <span class="text-sm flex-1" :class="darkMode ? 'text-gray-200' : 'text-gray-700'">
+                <span
+                  class="text-sm flex-1"
+                  :class="darkMode ? 'text-gray-200' : 'text-gray-700'"
+                >
                   {{ product.product_name }}
                 </span>
                 <div class="flex items-center w-1/3">
-                  <div class="h-2 rounded-full mr-2 transition-all duration-500"
-                    :class="darkMode ? 'bg-gray-600' : 'bg-gray-200'" :style="{
+                  <div
+                    class="h-2 rounded-full mr-2 transition-all duration-500"
+                    :class="darkMode ? 'bg-gray-600' : 'bg-gray-200'"
+                    :style="{
                       width: `${(product.total / maxProductValue) * 100}%`,
                       backgroundColor: getRankColor(index),
-                    }"></div>
-                  <span class="text-sm font-medium" :class="darkMode ? 'text-gray-300' : 'text-gray-600'">
+                    }"
+                  ></div>
+                  <span
+                    class="text-sm font-medium"
+                    :class="darkMode ? 'text-gray-300' : 'text-gray-600'"
+                  >
                     {{ formatNumber(product.total) }}
                   </span>
                 </div>
@@ -138,33 +97,54 @@
         </div>
 
         <!-- Gráfico de Categorías -->
-        <div class="rounded-xl p-6 transition-all duration-300" :class="darkMode
-          ? 'bg-gray-800 border border-gray-700'
-          : 'bg-white border border-gray-100'
-          ">
-          <h3 class="text-lg font-semibold mb-4" :class="darkMode ? 'text-gray-200' : 'text-gray-900'">
+        <div
+          class="rounded-xl p-6 transition-all duration-300"
+          :class="
+            darkMode
+              ? 'bg-gray-800 border border-gray-700'
+              : 'bg-white border border-gray-100'
+          "
+        >
+          <h3
+            class="text-lg font-semibold mb-4"
+            :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
+          >
             Ventas por Categoría
           </h3>
           <canvas ref="categoryChart"></canvas>
         </div>
 
         <!-- Gráfico de Métodos de Pago -->
-        <div class="rounded-xl p-6 transition-all duration-300" :class="darkMode
-          ? 'bg-gray-800 border border-gray-700'
-          : 'bg-white border border-gray-100'
-          ">
-          <h3 class="text-lg font-semibold mb-4" :class="darkMode ? 'text-gray-200' : 'text-gray-900'">
+        <div
+          class="rounded-xl p-6 transition-all duration-300"
+          :class="
+            darkMode
+              ? 'bg-gray-800 border border-gray-700'
+              : 'bg-white border border-gray-100'
+          "
+        >
+          <h3
+            class="text-lg font-semibold mb-4"
+            :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
+          >
             Distribución de Pagos
           </h3>
           <canvas ref="paymentChart"></canvas>
         </div>
 
         <!-- Gráfico Regional -->
-        <div class="rounded-xl p-6 transition-all duration-300 lg:col-span-2" :class="darkMode
-          ? 'bg-gray-800 border border-gray-700'
-          : 'bg-white border border-gray-100'
-          ">
-          <h3 class="text-lg font-semibold mb-4" :class="darkMode ? 'text-gray-200' : 'text-gray-900'">
+        <div
+          class="rounded-xl p-6 transition-all duration-300 lg:col-span-2"
+          :class="
+            darkMode
+              ? 'bg-gray-800 border border-gray-700'
+              : 'bg-white border border-gray-100'
+          "
+        >
+          <h3
+            class="text-lg font-semibold mb-4"
+            :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
+          >
             Distribución Regional
           </h3>
           <canvas ref="regionalChart"></canvas>
@@ -174,41 +154,71 @@
       <!-- Gráficos Secundarios -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
         <!-- Gráfico de Clientes -->
-        <div class="rounded-xl p-6 transition-all duration-300" :class="darkMode
-          ? 'bg-gray-800 border border-gray-700'
-          : 'bg-white border border-gray-100'
-          ">
-          <h3 class="text-lg font-semibold mb-4" :class="darkMode ? 'text-gray-200' : 'text-gray-900'">
+        <div
+          class="rounded-xl p-6 transition-all duration-300"
+          :class="
+            darkMode
+              ? 'bg-gray-800 border border-gray-700'
+              : 'bg-white border border-gray-100'
+          "
+        >
+          <h3
+            class="text-lg font-semibold mb-4"
+            :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
+          >
             Tipos de Clientes
           </h3>
           <canvas ref="customerChart"></canvas>
         </div>
 
         <!-- Top Vendedores -->
-        <div class="rounded-xl p-6 transition-all duration-300 lg:col-span-2" :class="darkMode
-          ? 'bg-gray-800 border border-gray-700'
-          : 'bg-white border border-gray-100'
-          ">
-          <h3 class="text-lg font-semibold mb-4" :class="darkMode ? 'text-gray-200' : 'text-gray-900'">
+        <div
+          class="rounded-xl p-6 transition-all duration-300 lg:col-span-2"
+          :class="
+            darkMode
+              ? 'bg-gray-800 border border-gray-700'
+              : 'bg-white border border-gray-100'
+          "
+        >
+          <h3
+            class="text-lg font-semibold mb-4"
+            :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
+          >
             Top Vendedores
           </h3>
           <div class="space-y-4">
-            <div v-for="(seller, index) in topSellers" :key="seller.sales_person"
-              class="flex items-center justify-between p-3 rounded-lg" :class="darkMode ? 'bg-gray-700' : 'bg-gray-50'">
+            <div
+              v-for="(seller, index) in topSellers"
+              :key="seller.sales_person"
+              class="flex items-center justify-between p-3 rounded-lg"
+              :class="darkMode ? 'bg-gray-700' : 'bg-gray-50'"
+            >
               <div class="flex items-center w-full">
-                <span class="text-sm font-medium mr-4" :class="darkMode ? 'text-gray-300' : 'text-gray-600'">
+                <span
+                  class="text-sm font-medium mr-4"
+                  :class="darkMode ? 'text-gray-300' : 'text-gray-600'"
+                >
                   #{{ index + 1 }}
                 </span>
-                <span class="text-sm flex-1" :class="darkMode ? 'text-gray-200' : 'text-gray-700'">
+                <span
+                  class="text-sm flex-1"
+                  :class="darkMode ? 'text-gray-200' : 'text-gray-700'"
+                >
                   {{ seller.sales_person }}
                 </span>
                 <div class="flex items-center w-1/3">
-                  <div class="h-2 rounded-full mr-2 transition-all duration-500"
-                    :class="darkMode ? 'bg-gray-600' : 'bg-gray-200'" :style="{
+                  <div
+                    class="h-2 rounded-full mr-2 transition-all duration-500"
+                    :class="darkMode ? 'bg-gray-600' : 'bg-gray-200'"
+                    :style="{
                       width: `${(seller.total / maxSalesValue) * 100}%`,
                       backgroundColor: getRankColor(index),
-                    }"></div>
-                  <span class="text-sm font-medium" :class="darkMode ? 'text-gray-300' : 'text-gray-600'">
+                    }"
+                  ></div>
+                  <span
+                    class="text-sm font-medium"
+                    :class="darkMode ? 'text-gray-300' : 'text-gray-600'"
+                  >
                     ${{ formatNumber(seller.total) }}
                   </span>
                 </div>
@@ -220,10 +230,14 @@
       <!-- Tercera Fila -->
       <div class="grid grid-cols-1 mt-6 lg:grid-cols-2 gap-6">
         <!-- Nuevo: Tendencia Diaria (30 días) -->
-        <div class="rounded-xl p-6 transition-all duration-300 lg:col-span-2" :class="darkMode
-          ? 'bg-gray-800 border border-gray-700'
-          : 'bg-white border border-gray-100'
-          ">
+        <div
+          class="rounded-xl p-6 transition-all duration-300 lg:col-span-2"
+          :class="
+            darkMode
+              ? 'bg-gray-800 border border-gray-700'
+              : 'bg-white border border-gray-100'
+          "
+        >
           <h3 class="text-lg font-semibold mb-4">
             Tendencia Diaria (Últimos 30 días)
           </h3>
@@ -231,10 +245,14 @@
         </div>
 
         <!-- Nuevo: Comparación Mensual Anual -->
-        <div class="rounded-xl p-6 transition-all duration-300 lg:col-span-2" :class="darkMode
-          ? 'bg-gray-800 border border-gray-700'
-          : 'bg-white border border-gray-100'
-          ">
+        <div
+          class="rounded-xl p-6 transition-all duration-300 lg:col-span-2"
+          :class="
+            darkMode
+              ? 'bg-gray-800 border border-gray-700'
+              : 'bg-white border border-gray-100'
+          "
+        >
           <h3 class="text-lg font-semibold mb-4">Comparación Mensual</h3>
           <canvas ref="comparisonChart"></canvas>
         </div>
@@ -250,10 +268,19 @@ import MultiSelect from "@/Components/MultiSelect.vue";
 import SelectFilter from "@/Components/SelectFilter.vue";
 import DashboardHeader from "@/Components/DashboardHeader.vue";
 import ChartDataLabels from "chartjs-plugin-datalabels";
+import FilterSidebar from "@/Components/FilterSidebar.vue";
+import KpiSection from "@/Components/KpiSection.vue";
 Chart.register(ChartDataLabels);
 
 export default {
-  components: { VueDatePicker, MultiSelect, SelectFilter, DashboardHeader },
+  components: {
+    VueDatePicker,
+    MultiSelect,
+    SelectFilter,
+    DashboardHeader,
+    FilterSidebar,
+    KpiSection,
+  },
   props: {
     indicators: {
       type: Object,
@@ -313,35 +340,6 @@ export default {
 
     toggleDarkMode() {
       this.darkMode = !this.darkMode;
-    },
-
-    applyFilters() {
-      this.$inertia.get(
-        route("sales.index"),
-        {
-          date_range: this.dateRange,
-          regions: this.selectedRegions,
-          categories: this.selectedCategories,
-          customer_types: this.selectedCustomerTypes,
-          payment_methods: this.selectedPaymentMethods,
-          sales_persons: this.selectedSalesPersons,
-        },
-        {
-          preserveState: true,
-          replace: true,
-          preserveScroll: true,
-        }
-      );
-    },
-
-    resetFilters() {
-      this.dateRange = null;
-      this.selectedRegions = [];
-      this.selectedCategories = [];
-      this.selectedCustomerTypes = [];
-      this.selectedPaymentMethods = [];
-      this.selectedSalesPersons = [];
-      this.applyFilters();
     },
 
     initCharts() {
@@ -643,9 +641,10 @@ export default {
 
     formatNumber(number) {
       return new Intl.NumberFormat("es-ES", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(number || 0);
+        style: "decimal", // Asegura que se use el formato decimal
+        minimumFractionDigits: 0, // No mostrar decimales
+        maximumFractionDigits: 0, // No mostrar decimales
+      }).format(Number(number) || 0); // Asegúrate de que el valor sea un número
     },
   },
 
@@ -669,13 +668,6 @@ export default {
       if (!this.topSellers.length) return 1;
       return this.topSellers[0].total; // Tomar el máximo del top 5
     },
-
-    sortedSalesPersons() {
-      const salesPersons = this.filterOptions.sales_persons || [];
-      return salesPersons
-        .filter((person) => typeof person === "string" && person.trim() !== "") // Filtrar cadenas válidas
-        .sort((a, b) => a.localeCompare(b)); // Ordenar directamente las cadenas
-    }
   },
 
   watch: {

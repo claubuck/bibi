@@ -1,57 +1,63 @@
 <template>
-  <div class="w-1/4 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md h-full">
-    <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
-      Filtros
-    </h2>
-
-    <div>
-      <label class="block text-sm font-medium dark:text-gray-300"
-        >Rango de Fechas</label
-      >
-      <VueDatePicker
-        v-model="localFilters.date_range"
-        range
-        :enable-time-picker="false"
-        :dark="darkMode"
-        :class="darkMode ? 'dp-custom-dark' : 'dp-custom-light'"
-      />
-    </div>
-
+  <div
+      class="w-1/4 p-6 rounded-xl shadow-md h-full"
+      :class="darkMode ? 'dark:bg-gray-800' : 'bg-white'"
+    >
+      <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
+        Filtros
+      </h2> 
+    <VueDatePicker
+      v-model="localFilters.date_range"
+      range
+      :enable-time-picker="false"
+      :dark="darkMode"
+      @update:model-value="applyFilters"
+    />
     <MultiSelect
       v-model="localFilters.regions"
       :options="filterOptions.regions"
       label="Regiones"
+      :dark="darkMode"
+      @update:model-value="applyFilters"
     />
     <MultiSelect
       v-model="localFilters.categories"
       :options="filterOptions.categories"
       label="Categorías"
+      :dark="darkMode"
+      @update:model-value="applyFilters"
     />
-
     <div class="mt-4">
       <SelectFilter
         v-model="localFilters.customer_types"
         :options="filterOptions.customer_types"
         label="Tipo de Cliente"
+        :dark="darkMode"
+        @update:model-value="applyFilters"
       />
       <SelectFilter
         v-model="localFilters.payment_methods"
         :options="filterOptions.payment_methods"
         label="Método de Pago"
+        :dark="darkMode"
+        @update:model-value="applyFilters"
       />
       <SelectFilter
         v-model="localFilters.sales_persons"
-        :options="filterOptions.sales_persons"
+        :options="sortedSalesPersons"
         label="Vendedor"
+        :dark="darkMode"
+        @update:model-value="applyFilters"
       />
     </div>
-
-    <button
-      @click="$emit('reset-filters')"
-      class="mt-4 px-4 py-2 w-full bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-    >
-      Limpiar Filtros
-    </button>
+    <div class="mt-4">
+      <button
+        @click="resetFilters"
+        class="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors w-full"
+      >
+        Limpiar Filtros
+      </button>
+    </div>
   </div>
 </template>
 
@@ -67,66 +73,55 @@ export default {
     VueDatePicker,
   },
   props: {
+    darkMode: Boolean,
     filterOptions: Object,
-    initialFilters: Object,
-    darkMode: {
-      type: Boolean,
-      default: false,
-    },
+    filters: Object,
   },
   data() {
-    const defaultFilters = {
-      date_range: null,
-      regions: [],
-      categories: [],
-      customer_types: [],
-      payment_methods: [],
-      sales_persons: [],
-    };
-
     return {
-      defaultFilters, // <-- Guardar como referencia
-      localFilters: JSON.parse(
-        JSON.stringify({
-          ...defaultFilters,
-          ...this.initialFilters,
-        })
-      ),
-      isUpdatingFromParent: false,
+      localFilters: { ...this.filters }, // Copia local de los filtros
     };
   },
-  watch: {
-    initialFilters: {
-      handler(newVal) {
-        if (this.isEqual(newVal, this.localFilters)) return;
-
-        this.isUpdatingFromParent = true;
-        this.localFilters = JSON.parse(
-          JSON.stringify({
-            ...this.defaultFilters,
-            ...newVal,
-          })
-        );
-        this.$nextTick(() => (this.isUpdatingFromParent = false));
-      },
-      deep: true,
-      immediate: true,
-    },
-  },
-  watch: {
-    localFilters: {
-      handler: _.debounce(function (newVal, oldVal) {
-        if (!this.isUpdatingFromParent && !this.isEqual(newVal, oldVal)) {
-          this.$emit("filter-changed", newVal);
-        }
-      }, 500),
-      deep: true,
-    },
-  },
-
   methods: {
-    isEqual(a, b) {
-      return JSON.stringify(a) === JSON.stringify(b);
+    resetFilters() {
+      this.localFilters = {
+        date_range: null,
+        regions: [],
+        categories: [],
+        customer_types: [],
+        payment_methods: [],
+        sales_persons: [],
+      };
+      this.applyFilters();
+    },
+
+    applyFilters() {
+      console.log("Aplicando filtros:", this.localFilters);
+      this.$inertia.get(
+        route("sales.index"),
+        {
+          date_range: this.localFilters.date_range,
+          regions: this.localFilters.regions,
+          categories: this.localFilters.categories,
+          customer_types: this.localFilters.customer_types,
+          payment_methods: this.localFilters.payment_methods,
+          sales_persons: this.localFilters.sales_persons,
+        },
+        {
+          preserveState: true,
+          replace: true,
+          preserveScroll: true,
+        }
+      );
+    },
+  },
+
+  computed: {
+    sortedSalesPersons() {
+      const salesPersons = this.filterOptions.sales_persons || [];
+      return salesPersons
+        .filter((person) => typeof person === "string" && person.trim() !== "") // Filtrar cadenas válidas
+        .sort((a, b) => a.localeCompare(b)); // Ordenar directamente las cadenas
     },
   },
 };

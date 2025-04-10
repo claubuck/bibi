@@ -15,10 +15,7 @@
       />
 
       <!-- Tarjetas de KPIs -->
-      <KpiSection 
-        :indicators="indicators"
-        :dark-mode="darkMode"
-      />
+      <KpiSection :indicators="indicators" :dark-mode="darkMode" />
 
       <!-- Gráficos -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -147,7 +144,7 @@
           >
             Distribución Regional
           </h3>
-          <canvas ref="regionalChart"></canvas>
+          <div id="regionalMap" class="h-96 w-full rounded-lg"></div>
         </div>
       </div>
 
@@ -238,7 +235,10 @@
               : 'bg-white border border-gray-100'
           "
         >
-          <h3 class="text-lg font-semibold mb-4">
+          <h3
+            class="text-lg font-semibold mb-4"
+            :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
+          >
             Tendencia Diaria (Últimos 30 días)
           </h3>
           <canvas ref="dailyChart"></canvas>
@@ -253,7 +253,12 @@
               : 'bg-white border border-gray-100'
           "
         >
-          <h3 class="text-lg font-semibold mb-4">Comparación Mensual</h3>
+          <h3
+            class="text-lg font-semibold mb-4"
+            :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
+          >
+            Comparación Mensual
+          </h3>
           <canvas ref="comparisonChart"></canvas>
         </div>
       </div>
@@ -263,20 +268,17 @@
 
 <script>
 import Chart from "chart.js/auto";
-import VueDatePicker from "@vuepic/vue-datepicker";
-import MultiSelect from "@/Components/MultiSelect.vue";
-import SelectFilter from "@/Components/SelectFilter.vue";
 import DashboardHeader from "@/Components/DashboardHeader.vue";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import FilterSidebar from "@/Components/FilterSidebar.vue";
 import KpiSection from "@/Components/KpiSection.vue";
+import L from "leaflet";
+import "leaflet.heat";
+import "leaflet/dist/leaflet.css";
 Chart.register(ChartDataLabels);
 
 export default {
   components: {
-    VueDatePicker,
-    MultiSelect,
-    SelectFilter,
     DashboardHeader,
     FilterSidebar,
     KpiSection,
@@ -314,25 +316,51 @@ export default {
         performance: null,
         daily: null,
         comparison: null,
+        map: null,
       },
-      dateRange: this.filters.date_range || null,
-      selectedRegions: this.filters.regions || [],
-      selectedCategories: this.filters.categories || [],
-      selectedCustomerTypes: this.filters.customer_types || [],
-      selectedPaymentMethods: this.filters.payment_methods || [],
-      selectedSalesPersons: this.filters.sales_persons || [],
       darkMode: false,
     };
   },
 
   mounted() {
     this.initCharts();
+    this.initRegionalMap(); // 👈 llamada nueva
     if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
       this.darkMode = true;
     }
   },
 
   methods: {
+    initRegionalMap() {
+      if (this.map) {
+        this.map.remove(); // Si ya existe, eliminar el mapa anterior
+      }
+
+      // Crear el mapa centrado en el medio de Estados Unidos
+      this.map = L.map("regionalMap").setView([39.8283, -98.5795], 4); // Coordenadas del centro geográfico aproximado de EE.UU.
+
+      // Capa base de mapa
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(this.map);
+
+      // Filtrar datos válidos y crear datos de calor
+      const heatData = this.indicators.regional_sales
+        .filter((region) => region.lat && region.lng && region.total) // Filtrar datos válidos
+        .map((region) => [region.lat, region.lng, region.total]); // Crear array de [lat, lng, intensidad]
+
+      // Verificar si hay datos válidos antes de agregar la capa de calor
+      if (heatData.length > 0) {
+        L.heatLayer(heatData, {
+          radius: 25,
+          blur: 15,
+          maxZoom: 10,
+        }).addTo(this.map);
+      } else {
+        console.warn("No hay datos válidos para mostrar en el mapa.");
+      }
+    },
     getRankColor(index) {
       const colors = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"];
       return colors[index] || colors[0];

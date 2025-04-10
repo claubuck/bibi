@@ -6,6 +6,7 @@ use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Database\Seeders\SaleSeeder;
+use Database\Seeders\RegionSeeder;
 
 class DatabaseSeeder extends Seeder
 {
@@ -22,7 +23,8 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call([
-            SaleSeeder::class
+            SaleSeeder::class,
+            RegionSeeder::class,
         ]);
     }
 }

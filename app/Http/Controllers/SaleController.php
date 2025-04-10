@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Carbon\Carbon;
 use App\Models\Sale;
 use Inertia\Inertia;
+use App\Models\Region;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StoreSaleRequest;
@@ -139,7 +140,17 @@ class SaleController extends Controller
                 ->select('region')
                 ->selectRaw('SUM(total_sale) as total')
                 ->groupBy('region')
-                ->get(),
+                ->get()
+                ->map(function ($item) {
+                    $region = Region::where('name', $item->region)->first();
+
+                    return [
+                        'region' => $item->region,
+                        'total' => (float) $item->total,
+                        'lat' => optional($region)->lat,
+                        'lng' => optional($region)->lng,
+                    ];
+                }),
 
             'daily_trend' => $query->clone()
                 ->select(

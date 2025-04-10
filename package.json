@@ -25,6 +25,8 @@
         "@headlessui/vue": "^1.7.23",
         "@vuepic/vue-datepicker": "^11.0.2",
         "chart.js": "^4.4.8",
-        "chartjs-plugin-datalabels": "^2.2.0"
+        "chartjs-plugin-datalabels": "^2.2.0",
+        "leaflet": "^1.9.4",
+        "leaflet.heat": "^0.2.0"
     }
 }

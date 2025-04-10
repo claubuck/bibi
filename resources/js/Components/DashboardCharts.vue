@@ -1,21 +1,10 @@
 <template>
   <div>
-    <!-- Primera fila de gráficos principales -->
+    <!-- Gráficos -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Gráfico de Tendencia Mensual -->
-      <ChartContainer
-        v-for="chart in mainCharts"
-        :key="chart.title"
-        :title="chart.title"
-        :chart-type="chart.type"
-        :chart-data="chart.data"
-        :chart-options="chart.options"
-        :dark-mode="darkMode"
-      />
-
-      <!-- Ranking de Productos -->
       <div
-        class="rounded-xl p-6 transition-all duration-300 h-full"
+        class="rounded-xl p-6 transition-all duration-300"
         :class="
           darkMode
             ? 'bg-gray-800 border border-gray-700'
@@ -23,65 +12,231 @@
         "
       >
         <h3
-          :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
           class="text-lg font-semibold mb-4"
+          :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
+        >
+          Tendencia Mensual de Ventas
+        </h3>
+        <canvas ref="trendChart"></canvas>
+      </div>
+
+      <!-- Productos Más Vendidos -->
+      <div
+        class="rounded-xl p-6 transition-all duration-300"
+        :class="
+          darkMode
+            ? 'bg-gray-800 border border-gray-700'
+            : 'bg-white border border-gray-100'
+        "
+      >
+        <h3
+          class="text-lg font-semibold mb-4"
+          :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
         >
           Productos Más Vendidos
         </h3>
-        <div class="space-y-3">
+        <div class="space-y-4">
           <div
-            v-for="(product, index) in sortedProducts"
+            v-for="(product, index) in indicators.product_performance"
             :key="product.product_name"
-            class="flex items-center justify-between p-3 rounded-lg transition-colors"
-            :class="darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'"
+            class="flex items-center justify-between p-3 rounded-lg"
+            :class="darkMode ? 'bg-gray-700' : 'bg-gray-50'"
           >
-            <div class="flex items-center space-x-3">
+            <div class="flex items-center w-full">
               <span
-                class="text-sm font-medium"
-                :class="darkMode ? 'text-gray-400' : 'text-gray-500'"
+                class="text-sm font-medium mr-4"
+                :class="darkMode ? 'text-gray-300' : 'text-gray-600'"
               >
                 #{{ index + 1 }}
               </span>
-              <span :class="darkMode ? 'text-gray-300' : 'text-gray-700'">
+              <span
+                class="text-sm flex-1"
+                :class="darkMode ? 'text-gray-200' : 'text-gray-700'"
+              >
                 {{ product.product_name }}
               </span>
+              <div class="flex items-center w-1/3">
+                <div
+                  class="h-2 rounded-full mr-2 transition-all duration-500"
+                  :class="darkMode ? 'bg-gray-600' : 'bg-gray-200'"
+                  :style="{
+                    width: `${(product.total / maxProductValue) * 100}%`,
+                    backgroundColor: getRankColor(index),
+                  }"
+                ></div>
+                <span
+                  class="text-sm font-medium"
+                  :class="darkMode ? 'text-gray-300' : 'text-gray-600'"
+                >
+                  {{ formatNumber(product.total) }}
+                </span>
+              </div>
             </div>
-            <span
-              class="text-sm font-semibold"
-              :class="darkMode ? 'text-blue-400' : 'text-blue-600'"
-            >
-              {{ formatNumber(product.total) }} unidades
-            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gráfico de Categorías -->
+      <div
+        class="rounded-xl p-6 transition-all duration-300"
+        :class="
+          darkMode
+            ? 'bg-gray-800 border border-gray-700'
+            : 'bg-white border border-gray-100'
+        "
+      >
+        <h3
+          class="text-lg font-semibold mb-4"
+          :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
+        >
+          Ventas por Categoría
+        </h3>
+        <canvas ref="categoryChart"></canvas>
+      </div>
+
+      <!-- Gráfico de Métodos de Pago -->
+      <div
+        class="rounded-xl p-6 transition-all duration-300"
+        :class="
+          darkMode
+            ? 'bg-gray-800 border border-gray-700'
+            : 'bg-white border border-gray-100'
+        "
+      >
+        <h3
+          class="text-lg font-semibold mb-4"
+          :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
+        >
+          Distribución de Pagos
+        </h3>
+        <canvas ref="paymentChart"></canvas>
+      </div>
+
+      <!-- Gráfico Regional -->
+      <div
+        class="rounded-xl p-6 transition-all duration-300 lg:col-span-2"
+        :class="
+          darkMode
+            ? 'bg-gray-800 border border-gray-700'
+            : 'bg-white border border-gray-100'
+        "
+      >
+        <h3
+          class="text-lg font-semibold mb-4"
+          :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
+        >
+          Distribución Regional
+        </h3>
+        <canvas ref="regionalChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Gráficos Secundarios -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
+      <!-- Gráfico de Clientes -->
+      <div
+        class="rounded-xl p-6 transition-all duration-300"
+        :class="
+          darkMode
+            ? 'bg-gray-800 border border-gray-700'
+            : 'bg-white border border-gray-100'
+        "
+      >
+        <h3
+          class="text-lg font-semibold mb-4"
+          :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
+        >
+          Tipos de Clientes
+        </h3>
+        <canvas ref="customerChart"></canvas>
+      </div>
+
+      <!-- Top Vendedores -->
+      <div
+        class="rounded-xl p-6 transition-all duration-300 lg:col-span-2"
+        :class="
+          darkMode
+            ? 'bg-gray-800 border border-gray-700'
+            : 'bg-white border border-gray-100'
+        "
+      >
+        <h3
+          class="text-lg font-semibold mb-4"
+          :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
+        >
+          Top Vendedores
+        </h3>
+        <div class="space-y-4">
+          <div
+            v-for="(seller, index) in topSellers"
+            :key="seller.sales_person"
+            class="flex items-center justify-between p-3 rounded-lg"
+            :class="darkMode ? 'bg-gray-700' : 'bg-gray-50'"
+          >
+            <div class="flex items-center w-full">
+              <span
+                class="text-sm font-medium mr-4"
+                :class="darkMode ? 'text-gray-300' : 'text-gray-600'"
+              >
+                #{{ index + 1 }}
+              </span>
+              <span
+                class="text-sm flex-1"
+                :class="darkMode ? 'text-gray-200' : 'text-gray-700'"
+              >
+                {{ seller.sales_person }}
+              </span>
+              <div class="flex items-center w-1/3">
+                <div
+                  class="h-2 rounded-full mr-2 transition-all duration-500"
+                  :class="darkMode ? 'bg-gray-600' : 'bg-gray-200'"
+                  :style="{
+                    width: `${(seller.total / maxSalesValue) * 100}%`,
+                    backgroundColor: getRankColor(index),
+                  }"
+                ></div>
+                <span
+                  class="text-sm font-medium"
+                  :class="darkMode ? 'text-gray-300' : 'text-gray-600'"
+                >
+                  ${{ formatNumber(seller.total) }}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Segunda fila de gráficos secundarios -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-      <ChartContainer
-        v-for="chart in secondaryCharts"
-        :key="chart.title"
-        :title="chart.title"
-        :chart-type="chart.type"
-        :chart-data="chart.data"
-        :chart-options="chart.options"
-        :dark-mode="darkMode"
-        :class="chart.fullWidth ? 'lg:col-span-2' : ''"
-      />
-    </div>
+    <!-- Tercera Fila -->
+    <div class="grid grid-cols-1 mt-6 lg:grid-cols-2 gap-6">
+      <!-- Nuevo: Tendencia Diaria (30 días) -->
+      <div
+        class="rounded-xl p-6 transition-all duration-300 lg:col-span-2"
+        :class="
+          darkMode
+            ? 'bg-gray-800 border border-gray-700'
+            : 'bg-white border border-gray-100'
+        "
+      >
+        <h3 class="text-lg font-semibold mb-4">
+          Tendencia Diaria (Últimos 30 días)
+        </h3>
+        <canvas ref="dailyChart"></canvas>
+      </div>
 
-    <!-- Tercera fila de gráficos adicionales -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-      <ChartContainer
-        v-for="chart in additionalCharts"
-        :key="chart.title"
-        :title="chart.title"
-        :chart-type="chart.type"
-        :chart-data="chart.data"
-        :chart-options="chart.options"
-        :dark-mode="darkMode"
-      />
+      <!-- Nuevo: Comparación Mensual Anual -->
+      <div
+        class="rounded-xl p-6 transition-all duration-300 lg:col-span-2"
+        :class="
+          darkMode
+            ? 'bg-gray-800 border border-gray-700'
+            : 'bg-white border border-gray-100'
+        "
+      >
+        <h3 class="text-lg font-semibold mb-4">Comparación Mensual</h3>
+        <canvas ref="comparisonChart"></canvas>
+      </div>
     </div>
   </div>
 </template>

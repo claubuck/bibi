@@ -1,32 +1,40 @@
 <template>
   <div
-      class="w-1/4 p-6 rounded-xl shadow-md h-full"
-      :class="darkMode ? 'dark:bg-gray-800' : 'bg-white'"
+    class="p-4 rounded-lg shadow-md"
+    :class="darkMode ? 'bg-gray-800' : 'bg-white'"
+  >
+    <h2
+      class="text-lg font-semibold mb-4"
+      :class="darkMode ? 'text-gray-200' : 'text-gray-800'"
     >
-      <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
-        Filtros
-      </h2> 
-    <VueDatePicker
-      v-model="localFilters.date_range"
-      range
-      :enable-time-picker="false"
-      :dark="darkMode"
-      @update:model-value="applyFilters"
-    />
-    <MultiSelect
-      v-model="localFilters.regions"
-      :options="filterOptions.regions"
-      label="Regiones"
-      :dark="darkMode"
-      @update:model-value="applyFilters"
-    />
-    <MultiSelect
-      v-model="localFilters.categories"
-      :options="filterOptions.categories"
-      label="Categorías"
-      :dark="darkMode"
-      @update:model-value="applyFilters"
-    />
+      Filtros
+    </h2>
+    <div class="mt-4">
+      <DatePicker
+        v-model="localFilters.date_range"
+        :dark-mode="darkMode"
+        @update:model-value="applyFilters"
+      />
+    </div>
+
+    <div class="mt-4">
+      <MultiSelect
+        v-model="localFilters.regions"
+        :options="filterOptions.regions"
+        label="Regiones"
+        :dark="darkMode"
+        @update:model-value="applyFilters"
+      />
+    </div>
+    <div class="mt-4">
+      <MultiSelect
+        v-model="localFilters.categories"
+        :options="filterOptions.categories"
+        label="Categorías"
+        :dark="darkMode"
+        @update:model-value="applyFilters"
+      />
+    </div>
     <div class="mt-4">
       <SelectFilter
         v-model="localFilters.customer_types"
@@ -35,6 +43,8 @@
         :dark="darkMode"
         @update:model-value="applyFilters"
       />
+    </div>
+    <div class="mt-4">
       <SelectFilter
         v-model="localFilters.payment_methods"
         :options="filterOptions.payment_methods"
@@ -42,6 +52,8 @@
         :dark="darkMode"
         @update:model-value="applyFilters"
       />
+    </div>
+    <div class="mt-4">
       <SelectFilter
         v-model="localFilters.sales_persons"
         :options="sortedSalesPersons"
@@ -65,12 +77,13 @@
 import MultiSelect from "@/Components/MultiSelect.vue";
 import SelectFilter from "@/Components/SelectFilter.vue";
 import VueDatePicker from "@vuepic/vue-datepicker";
+import DatePicker from "@/Components/DatePicker.vue";
 
 export default {
   components: {
     MultiSelect,
     SelectFilter,
-    VueDatePicker,
+    DatePicker,
   },
   props: {
     darkMode: Boolean,

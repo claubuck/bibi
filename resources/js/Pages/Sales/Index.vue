@@ -130,22 +130,7 @@
         </div>
 
         <!-- Gráfico Regional -->
-        <div
-          class="rounded-xl p-6 transition-all duration-300 lg:col-span-2"
-          :class="
-            darkMode
-              ? 'bg-gray-800 border border-gray-700'
-              : 'bg-white border border-gray-100'
-          "
-        >
-          <h3
-            class="text-lg font-semibold mb-4"
-            :class="darkMode ? 'text-gray-200' : 'text-gray-900'"
-          >
-            Distribución Regional
-          </h3>
-          <div id="regionalMap" class="h-96 w-full rounded-lg"></div>
-        </div>
+        <RegionalDistribution :indicators="indicators" :dark-mode="darkMode" />
       </div>
 
       <!-- Gráficos Secundarios -->
@@ -272,6 +257,7 @@ import DashboardHeader from "@/Components/DashboardHeader.vue";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import FilterSidebar from "@/Components/FilterSidebar.vue";
 import KpiSection from "@/Components/KpiSection.vue";
+import RegionalDistribution from "@/Components/RegionalDistribution.vue";
 import L from "leaflet";
 import "leaflet.heat";
 import "leaflet/dist/leaflet.css";
@@ -282,6 +268,7 @@ export default {
     DashboardHeader,
     FilterSidebar,
     KpiSection,
+    RegionalDistribution,
   },
   props: {
     indicators: {
@@ -331,36 +318,6 @@ export default {
   },
 
   methods: {
-    initRegionalMap() {
-      if (this.map) {
-        this.map.remove(); // Si ya existe, eliminar el mapa anterior
-      }
-
-      // Crear el mapa centrado en el medio de Estados Unidos
-      this.map = L.map("regionalMap").setView([39.8283, -98.5795], 4); // Coordenadas del centro geográfico aproximado de EE.UU.
-
-      // Capa base de mapa
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      }).addTo(this.map);
-
-      // Filtrar datos válidos y crear datos de calor
-      const heatData = this.indicators.regional_sales
-        .filter((region) => region.lat && region.lng && region.total) // Filtrar datos válidos
-        .map((region) => [region.lat, region.lng, region.total]); // Crear array de [lat, lng, intensidad]
-
-      // Verificar si hay datos válidos antes de agregar la capa de calor
-      if (heatData.length > 0) {
-        L.heatLayer(heatData, {
-          radius: 25,
-          blur: 15,
-          maxZoom: 10,
-        }).addTo(this.map);
-      } else {
-        console.warn("No hay datos válidos para mostrar en el mapa.");
-      }
-    },
     getRankColor(index) {
       const colors = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"];
       return colors[index] || colors[0];
@@ -435,33 +392,6 @@ export default {
                 data: this.indicators.monthly_trend.map((item) => item.total),
                 borderColor: "#3B82F6",
                 tension: 0.4,
-              },
-            ],
-          },
-          options: {
-            plugins: {
-              datalabels: false, // Desactiva datalabels para este gráfico
-            },
-          },
-        });
-      }
-
-      // Gráfico Regional
-      if (this.$refs.regionalChart) {
-        this.charts.regional = new Chart(this.$refs.regionalChart, {
-          type: "doughnut",
-          data: {
-            labels: this.indicators.regional_sales.map((item) => item.region),
-            datasets: [
-              {
-                data: this.indicators.regional_sales.map((item) => item.total),
-                backgroundColor: [
-                  "#3B82F6",
-                  "#10B981",
-                  "#F59E0B",
-                  "#EF4444",
-                  "#8B5CF6",
-                ],
               },
             ],
           },
@@ -696,6 +626,7 @@ export default {
       if (!this.topSellers.length) return 1;
       return this.topSellers[0].total; // Tomar el máximo del top 5
     },
+
   },
 
   watch: {

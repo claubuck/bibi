@@ -5,6 +5,8 @@ import { Chart, registerables } from "chart.js";
 
 Chart.register(...registerables);
 
+// Data for the charts
+
 const salesData = {
   labels: ["Ene", "Feb", "Mar", "Abr", "May"],
   datasets: [
